@@ -5,6 +5,7 @@ app.use(express.json())
 const cors = require("cors")
 app.use(cors())
 app.use(express.static('dist'))
+const uri = "mongodb+srv://hashhelsinki:hashhashes123@cluster0.smri1.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 
 
 let persons = [
