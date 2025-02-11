@@ -1,37 +1,16 @@
+require('dotenv').config()
 const express = require("express")
 const morgan = require("morgan")
 const app = express()
 app.use(express.json())
 const cors = require("cors")
+const Person = require("./models/person")
+const mongoose = require("mongoose")
 app.use(cors())
-app.use(express.static('dist'))
-const uri = "mongodb+srv://hashhelsinki:hashhashes123@cluster0.smri1.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+app.use(express.static('dinpmst'))
 
 
-let persons = [
-
-    {
-        "id": "1",
-        "name": "Arto Hellas",
-        "number": "040-123456"
-    },
-    {
-        "id": "2",
-        "name": "Ada Lovelace",
-        "number": "39-44-5323523"
-    },
-    {
-        "id": "3",
-        "name": "Dan Abramov",
-        "number": "12-43-234345"
-    },
-    {
-        "id": "4",
-        "name": "Mary Poppendieck",
-        "number": "39-23-6423122"
-    }
-
-]
+let persons = []
 
 
 
@@ -40,17 +19,15 @@ app.get('/info', (req, res) => {
         ${Date()}`)
 })
 app.get('/api/persons', (req, res) => {
-    res.json(persons)
+    Person.find({}).then(persons => {
+        res.json(persons)
+    })
 })
 app.get('/api/persons/:id', (req, res) => {
-    const id = req.params.id
-    const person = persons.find(person => person.id === id)
-    if (person) {
+    Person.findById(req.params.id).then(person=>{
         res.json(person)
-    } else {
-        res.status(404)
-        res.send("<h1>It does not exist<h1/>")
     }
+    )
 })
 app.delete('/api/persons/:id', (req, res) => {
     const id = req.params.id
@@ -79,17 +56,15 @@ app.post('/api/persons', (req, res) => {
             error: "number missing"
         })
     }
-    const person = {
+    const person = new Person({
         id: genId(),
         name: body.name,
         number: body.number
-    }
-    const exists = persons.find(n => n.name === body.name)
-    if (exists) {
-        return res.status(204).json({ error: "it already exists" })
-    }
-    person = persons.concat(person)
-    res.json(person)
+    })
+    
+    person.save().then(saved => {
+        res.json(saved)
+    })
 })
 morgan.token('request-body', (req) => JSON.stringify(req.body))
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :request-body'))
