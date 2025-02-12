@@ -1,3 +1,4 @@
+require('dotenv').config()
 const express = require("express")
 const morgan = require("morgan")
 const app = express()
@@ -5,6 +6,7 @@ app.use(express.json())
 const cors = require("cors")
 app.use(cors())
 app.use(express.static('dist'))
+
 
 
 let persons = [
@@ -38,32 +40,43 @@ app.get('/info', (req, res) => {
     res.send(`phoneboook has enteires for ${persons.length} people<br />
         ${Date()}`)
 })
-app.get('/api/persons', (req, res) => {
-    res.json(persons)
+const Person = require('./models/person')
+app.get('/api/persons' ,(req,res) => {
+    Person.find({}).then(persons=>{
+        res.json(persons)
+    })
 })
-app.get('/api/persons/:id', (req, res) => {
-    const id = req.params.id
-    const person = persons.find(person => person.id === id)
-    if (person) {
-        res.json(person)
-    } else {
-        res.status(404)
-        res.send("<h1>It does not exist<h1/>")
-    }
+app.get('/api/persons/:id', (req, res,next) => {
+    Person.findById(req.params.id).then(person => {
+        if (person) {
+            res.json(person)
+        }else {
+            res.status(404).end()
+        }
+    }).catch(error => next(error))
 })
-app.delete('/api/persons/:id', (req, res) => {
-    const id = req.params.id
-    const person = persons.filter(note => note.id !== id)
-    res.json(person)
-    res.status(204).end()
+app.delete('/api/persons/:id', (req, res, next) => {
+    Person.findByIdAndDelete(req.params.id).then(result => {
+        res.status(204).end()
+    })
+    .catch(error => next(error))
 })
-const genId = () => {
-    const maxId = persons.length > 0 ?
-        Math.max(...persons.map(n => Number(n.id)))
-        : 0
-    return String(maxId + 1)
+app.put("/api/persons/:id" ,(req,res,next) => {
+    const body = req .body
 
-}
+    const person = {
+        name :body.name,
+        number : body.number
+    }
+
+    Person.findByIdAndUpdate(req.params.id,person.number,{new:true})
+    .then(updatedPhone => {
+        res.json(updatedPhone)
+    })
+    .catch(error => next(error))
+})
+
+
 app.post('/api/persons', (req, res) => {
     const body = req.body
 
@@ -78,18 +91,24 @@ app.post('/api/persons', (req, res) => {
             error: "number missing"
         })
     }
-    const person = {
-        id: genId(),
-        name: body.name,
+    const person = new Person ({
+        name : body.name,
         number: body.number
-    }
-    const exists = persons.find(n => n.name === body.name)
-    if (exists) {
-        return res.status(204).json({ error: "it already exists" })
-    }
-    person = persons.concat(person)
-    res.json(person)
+    })
+    person.save().then(saved =>{
+        res.json(saved)
+    })
 })
+const errorHandler = (error,req, res , next) => {
+    console.error(error.message);
+    
+    if (error.name === "CastError") {
+        return res.status(400).send({error :"malformatted id"})
+    }
+    next(error)
+}
+
+app.use(errorHandler)
 morgan.token('request-body', (req) => JSON.stringify(req.body))
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :request-body'))
 
